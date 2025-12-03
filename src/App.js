@@ -295,6 +295,38 @@ export default function CarMarketplace() {
     styleSheet.textContent = styles;
     document.head.appendChild(styleSheet);
 
+    // Check for saved user first
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+        setIsLoading(false);
+      } catch (e) {
+        localStorage.removeItem('user');
+        setIsLoading(false);
+      }
+    } else {
+      setIsLoading(false);
+    }
+
+    return () => {
+      if (styleSheet.parentNode) {
+        document.head.removeChild(styleSheet);
+      }
+    };
+  }, []);
+
+  // Separate effect for Google Sign-In initialization
+  useEffect(() => {
+    // Only initialize if user is not logged in
+    if (user) return;
+
+    // Check if script already loaded
+    if (window.google) {
+      initializeGoogleSignIn();
+      return;
+    }
+
     // Load Google Identity Services Script
     const script = document.createElement('script');
     script.src = 'https://accounts.google.com/gsi/client';
@@ -303,16 +335,31 @@ export default function CarMarketplace() {
     document.body.appendChild(script);
 
     script.onload = () => {
-      // Initialize Google Sign-In
-      if (window.google) {
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleCredentialResponse,
-          auto_select: false,
-          cancel_on_tap_outside: true,
-        });
+      initializeGoogleSignIn();
+    };
 
-        // Render button
+    script.onerror = () => {
+      console.error('Failed to load Google Identity Services');
+    };
+
+    return () => {
+      if (script.parentNode) {
+        document.body.removeChild(script);
+      }
+    };
+  }, [user, handleCredentialResponse, GOOGLE_CLIENT_ID]);
+
+  const initializeGoogleSignIn = () => {
+    if (window.google) {
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleCredentialResponse,
+        auto_select: false,
+        cancel_on_tap_outside: true,
+      });
+
+      // Render button with a small delay to ensure DOM is ready
+      setTimeout(() => {
         const buttonDiv = document.getElementById('google-signin-button');
         if (buttonDiv) {
           window.google.accounts.id.renderButton(
@@ -327,34 +374,9 @@ export default function CarMarketplace() {
             }
           );
         }
-      }
-
-      // Check for saved user
-      const savedUser = localStorage.getItem('user');
-      if (savedUser) {
-        try {
-          setUser(JSON.parse(savedUser));
-        } catch (e) {
-          localStorage.removeItem('user');
-        }
-      }
-      setIsLoading(false);
-    };
-
-    script.onerror = () => {
-      console.error('Failed to load Google Identity Services');
-      setIsLoading(false);
-    };
-
-    return () => {
-      if (styleSheet.parentNode) {
-        document.head.removeChild(styleSheet);
-      }
-      if (script.parentNode) {
-        document.body.removeChild(script);
-      }
-    };
-  }, [GOOGLE_CLIENT_ID, handleCredentialResponse]); // Tambahkan handleCredentialResponse sebagai dependency
+      }, 100);
+    }
+  }; // Tambahkan handleCredentialResponse sebagai dependency
 
   const handleLogout = () => {
     setUser(null);

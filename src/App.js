@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 // CSS sebagai string
 const styles = `
@@ -249,6 +249,46 @@ export default function CarMarketplace() {
   // GANTI INI DENGAN CLIENT ID ANDA
   const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '629945029527-u6b1f3v83odjhegvqg7d8bkehfmfgr1p.apps.googleusercontent.com';
 
+  // Decode JWT token
+  const parseJwt = (token) => {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      return JSON.parse(jsonPayload);
+    } catch (error) {
+      console.error('Error parsing JWT:', error);
+      return null;
+    }
+  };
+
+  // Wrap dengan useCallback untuk menghindari re-create setiap render
+  const handleCredentialResponse = useCallback((response) => {
+    try {
+      // Decode JWT token dari Google
+      const userObject = parseJwt(response.credential);
+      
+      if (userObject) {
+        const userData = {
+          name: userObject.name,
+          email: userObject.email,
+          picture: userObject.picture
+        };
+
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('Login gagal. Silakan coba lagi.');
+    }
+  }, []); // Empty dependency karena tidak bergantung pada state/props lain
+
   useEffect(() => {
     // Inject CSS
     const styleSheet = document.createElement("style");
@@ -314,46 +354,7 @@ export default function CarMarketplace() {
         document.body.removeChild(script);
       }
     };
-  }, [GOOGLE_CLIENT_ID]);
-
-  // Decode JWT token
-  const parseJwt = (token) => {
-    try {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split('')
-          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-          .join('')
-      );
-      return JSON.parse(jsonPayload);
-    } catch (error) {
-      console.error('Error parsing JWT:', error);
-      return null;
-    }
-  };
-
-  const handleCredentialResponse = (response) => {
-    try {
-      // Decode JWT token dari Google
-      const userObject = parseJwt(response.credential);
-      
-      if (userObject) {
-        const userData = {
-          name: userObject.name,
-          email: userObject.email,
-          picture: userObject.picture
-        };
-
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      alert('Login gagal. Silakan coba lagi.');
-    }
-  };
+  }, [GOOGLE_CLIENT_ID, handleCredentialResponse]); // Tambahkan handleCredentialResponse sebagai dependency
 
   const handleLogout = () => {
     setUser(null);

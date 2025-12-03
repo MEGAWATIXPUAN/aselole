@@ -287,7 +287,37 @@ export default function CarMarketplace() {
       console.error('Login error:', error);
       alert('Login gagal. Silakan coba lagi.');
     }
-  }, []); // Empty dependency karena tidak bergantung pada state/props lain
+  }, []);
+
+  // Wrap initializeGoogleSignIn dengan useCallback
+  const initializeGoogleSignIn = useCallback(() => {
+    if (window.google) {
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleCredentialResponse,
+        auto_select: false,
+        cancel_on_tap_outside: true,
+      });
+
+      // Render button dengan delay kecil untuk memastikan DOM sudah siap
+      setTimeout(() => {
+        const buttonDiv = document.getElementById('google-signin-button');
+        if (buttonDiv) {
+          window.google.accounts.id.renderButton(
+            buttonDiv,
+            { 
+              theme: 'outline', 
+              size: 'large',
+              width: 350,
+              text: 'signin_with',
+              shape: 'pill',
+              logo_alignment: 'left'
+            }
+          );
+        }
+      }, 100);
+    }
+  }, [GOOGLE_CLIENT_ID, handleCredentialResponse]);
 
   useEffect(() => {
     // Inject CSS
@@ -347,36 +377,7 @@ export default function CarMarketplace() {
         document.body.removeChild(script);
       }
     };
-  }, [user, handleCredentialResponse, GOOGLE_CLIENT_ID]);
-
-  const initializeGoogleSignIn = () => {
-    if (window.google) {
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleCredentialResponse,
-        auto_select: false,
-        cancel_on_tap_outside: true,
-      });
-
-      // Render button with a small delay to ensure DOM is ready
-      setTimeout(() => {
-        const buttonDiv = document.getElementById('google-signin-button');
-        if (buttonDiv) {
-          window.google.accounts.id.renderButton(
-            buttonDiv,
-            { 
-              theme: 'outline', 
-              size: 'large',
-              width: 350,
-              text: 'signin_with',
-              shape: 'pill',
-              logo_alignment: 'left'
-            }
-          );
-        }
-      }, 100);
-    }
-  }; // Tambahkan handleCredentialResponse sebagai dependency
+  }, [user, initializeGoogleSignIn]);
 
   const handleLogout = () => {
     setUser(null);
